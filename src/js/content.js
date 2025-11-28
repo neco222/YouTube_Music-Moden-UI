@@ -911,6 +911,11 @@
 
         data.forEach((line, index) => {
             const row = createEl('div', '', 'lyric-line');
+            // ★ FIX: 空行判定してクラス追加
+            if (!line.text || !line.text.trim()) {
+                row.classList.add('empty-line');
+            }
+            
             const mainSpan = createEl('span', '', 'lyric-main');
 
             const dyn = dynamicLines && dynamicLines[index];
