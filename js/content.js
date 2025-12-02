@@ -1,6 +1,3 @@
-// ローカルで編集している方へ。
-// コードを編集する前に、一度最新のファイルを取得してください。
-
 (function () {
   let config = {
     deepLKey: null,
@@ -22,6 +19,10 @@
   let lastTimeForChars = -1;
   let lyricRafId = null;
 
+  let shareMode = false;
+  let shareStartIndex = null;
+  let shareEndIndex = null;
+
   const ui = {
     bg: null, wrapper: null,
     title: null, artist: null, artwork: null,
@@ -29,14 +30,14 @@
     btnArea: null, uploadMenu: null, deleteDialog: null,
     settingsBtn: null,
     lyricsBtn: null,
-    fallbackToast: null
+    shareBtn: null
   };
 
   let hideTimer = null;
   let uploadMenuGlobalSetup = false;
   let deleteDialogGlobalSetup = false;
   let settingsOutsideClickSetup = false;
-  let fallbackToastTimer = null;
+  let toastTimer = null;
 
   const handleInteraction = () => {
     if (!ui.btnArea) return;
@@ -375,24 +376,20 @@
     return el;
   };
 
-  function showFallbackToast(message) {
-    let toast = ui.fallbackToast || document.getElementById('ytm-fallback-toast');
-    if (!toast) {
-      toast = createEl('div', 'ytm-fallback-toast', '', '');
-      document.body.appendChild(toast);
-      ui.fallbackToast = toast;
-    } else {
-      ui.fallbackToast = toast;
+  const showToast = (text) => {
+    if (!text) return;
+    let el = document.getElementById('ytm-toast');
+    if (!el) {
+      el = createEl('div', 'ytm-toast', '', '');
+      document.body.appendChild(el);
     }
-
-    toast.textContent = message;
-    toast.classList.add('visible');
-
-    if (fallbackToastTimer) clearTimeout(fallbackToastTimer);
-    fallbackToastTimer = setTimeout(() => {
-      toast.classList.remove('visible');
+    el.textContent = text;
+    el.classList.add('visible');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      el.classList.remove('visible');
     }, 5000);
-  }
+  };
 
   function setupAutoHideEvents() {
     if (document.body.dataset.autohideSetup) return;
@@ -991,6 +988,7 @@
     const btns = [];
 
     const lyricsBtnConfig = { txt: 'Lyrics', cls: 'lyrics-btn', click: () => { } };
+    const shareBtnConfig = { txt: 'Share', cls: 'share-btn', click: onShareButtonClick };
     const trashBtnConfig = { txt: '🗑️', cls: 'icon-btn', click: () => { } };
     const settingsBtnConfig = {
       txt: '⚙️',
@@ -998,7 +996,7 @@
       click: () => { initSettings(); ui.settings.classList.toggle('active'); }
     };
 
-    btns.push(lyricsBtnConfig, trashBtnConfig, settingsBtnConfig);
+    btns.push(lyricsBtnConfig, shareBtnConfig, trashBtnConfig, settingsBtnConfig);
 
     btns.forEach(b => {
       const btn = createEl('button', '', `ytm-glass-btn ${b.cls || ''}`, b.txt);
@@ -1008,6 +1006,9 @@
       if (b === lyricsBtnConfig) {
         ui.lyricsBtn = btn;
         setupUploadMenu(btn);
+      }
+      if (b === shareBtnConfig) {
+        ui.shareBtn = btn;
       }
       if (b === trashBtnConfig) setupDeleteDialog(btn);
       if (b === settingsBtnConfig) ui.settingsBtn = btn;
@@ -1092,8 +1093,8 @@
 
         console.log('[CS] GET_LYRICS response:', res);
 
-        if (res && res.fallbackSource === 'github') {
-          showFallbackToast('LRCHub が 30 秒以内に応答しなかったため、GitHub から歌詞を取得しました');
+        if (res?.githubFallback) {
+          showToast('APIが応答しないため、GitHubの歌詞を使用しました');
         }
 
         if (Array.isArray(res?.candidates) && res.candidates.length) {
@@ -1196,12 +1197,19 @@
       }
 
       row.onclick = () => {
+        if (shareMode) {
+          handleShareLineClick(index);
+          return;
+        }
         if (!hasTimestamp || line.time == null) return;
         const v = document.querySelector('video');
         if (v) v.currentTime = line.time;
       };
+
       ui.lyrics.appendChild(row);
     });
+
+    updateShareSelectionHighlight();
   }
 
   const handleUpload = (e) => {
@@ -1313,6 +1321,225 @@
     lastActiveIndex = isInterlude ? -1 : idx;
   }
 
+  function onShareButtonClick() {
+    if (!lyricsData.length) {
+      showToast('共有できる歌詞がありません');
+      return;
+    }
+    shareMode = !shareMode;
+    shareStartIndex = null;
+    shareEndIndex = null;
+    if (shareMode) {
+      document.body.classList.add('ytm-share-select-mode');
+      if (ui.shareBtn) ui.shareBtn.classList.add('share-active');
+      showToast('共有したい歌詞の開始行と終了行をクリックしてください');
+    } else {
+      document.body.classList.remove('ytm-share-select-mode');
+      if (ui.shareBtn) ui.shareBtn.classList.remove('share-active');
+    }
+    updateShareSelectionHighlight();
+  }
+
+  function handleShareLineClick(index) {
+    if (!shareMode) return;
+    if (!lyricsData.length) return;
+
+    if (shareStartIndex == null) {
+      shareStartIndex = index;
+      shareEndIndex = null;
+      updateShareSelectionHighlight();
+      return;
+    }
+
+    if (shareEndIndex == null) {
+      shareEndIndex = index;
+      updateShareSelectionHighlight();
+      finalizeShareSelection();
+      return;
+    }
+
+    shareStartIndex = index;
+    shareEndIndex = null;
+    updateShareSelectionHighlight();
+  }
+
+  function updateShareSelectionHighlight() {
+    if (!ui.lyrics) return;
+    const rows = ui.lyrics.querySelectorAll('.lyric-line');
+
+    rows.forEach(r => {
+      r.classList.remove('share-select');
+      r.classList.remove('share-select-range');
+      r.classList.remove('share-select-start');
+      r.classList.remove('share-select-end');
+    });
+
+    if (!shareMode || shareStartIndex == null || !lyricsData.length) return;
+
+    const max = lyricsData.length ? lyricsData.length - 1 : 0;
+    let s, e;
+
+    if (shareEndIndex == null) {
+      const idx = Math.max(0, Math.min(shareStartIndex, max));
+      s = idx;
+      e = idx;
+    } else {
+      const minIdx = Math.min(shareStartIndex, shareEndIndex);
+      const maxIdx = Math.max(shareStartIndex, shareEndIndex);
+      s = Math.max(0, Math.min(minIdx, max));
+      e = Math.max(0, Math.min(maxIdx, max));
+    }
+
+    for (let i = s; i <= e && i < rows.length; i++) {
+      const row = rows[i];
+      if (!row) continue;
+      row.classList.add('share-select-range');
+      if (i === s) row.classList.add('share-select-start');
+      if (i === e) row.classList.add('share-select-end');
+    }
+  }
+
+  function getShareSelectionInfo() {
+    if (!lyricsData.length || shareStartIndex == null) return null;
+
+    const max = lyricsData.length - 1;
+    let s, e;
+
+    if (shareEndIndex == null) {
+      const idx = Math.max(0, Math.min(shareStartIndex, max));
+      s = idx;
+      e = idx;
+    } else {
+      const minIdx = Math.min(shareStartIndex, shareEndIndex);
+      const maxIdx = Math.max(shareStartIndex, shareEndIndex);
+      s = Math.max(0, Math.min(minIdx, max));
+      e = Math.max(0, Math.min(maxIdx, max));
+    }
+
+    const parts = [];
+    for (let i = s; i <= e; i++) {
+      if (!lyricsData[i]) continue;
+      let t = (lyricsData[i].text || '').trim();
+      if (!t && lyricsData[i].translation) {
+        t = String(lyricsData[i].translation).trim();
+      }
+      if (t) parts.push(t);
+    }
+    const phrase = parts.join('\n');
+
+    let timeMs = 0;
+    if (hasTimestamp && lyricsData[s] && typeof lyricsData[s].time === 'number') {
+      timeMs = Math.round(lyricsData[s].time * 1000);
+    } else {
+      const v = document.querySelector('video');
+      if (v && typeof v.currentTime === 'number') {
+        timeMs = Math.round(v.currentTime * 1000);
+      }
+    }
+
+    return { phrase, timeMs };
+  }
+
+  function normalizeToHttps(url) {
+    if (!url) return url;
+    try {
+      const u = new URL(url, 'https://lrchub.coreone.work');
+      u.protocol = 'https:';
+      return u.toString();
+    } catch (e) {
+      if (url.startsWith('http://')) {
+        return 'https://' + url.slice(7);
+      }
+      return url;
+    }
+  }
+
+  function copyToClipboard(text) {
+    if (navigator.clipboard?.writeText) {
+      return navigator.clipboard.writeText(text).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      });
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      return Promise.resolve();
+    }
+  }
+
+  async function finalizeShareSelection() {
+    const info = getShareSelectionInfo();
+    if (!info || !info.phrase) {
+      showToast('選択された歌詞が空です');
+      return;
+    }
+
+    const youtube_url = getCurrentVideoUrl();
+    const video_id = getCurrentVideoId();
+    const lang = (config.mainLang && config.mainLang !== 'original') ? config.mainLang : 'ja';
+
+    try {
+      const res = await new Promise(resolve => {
+        chrome.runtime.sendMessage(
+          {
+            type: 'SHARE_REGISTER',
+            payload: {
+              youtube_url,
+              video_id,
+              phrase: info.phrase,
+              lang,
+              time_ms: info.timeMs
+            }
+          },
+          resolve
+        );
+      });
+
+      if (!res || !res.success) {
+        console.error('Share register failed:', res && res.error);
+        showToast('共有に失敗しました');
+        return;
+      }
+
+      let shareUrl = (res.data && res.data.share_url) || '';
+      shareUrl = normalizeToHttps(shareUrl);
+
+      if (!shareUrl && video_id) {
+        const sec = Math.round((info.timeMs || 0) / 1000);
+        shareUrl = `https://lrchub.coreone.work/s/${video_id}/${sec}`;
+      }
+
+      if (shareUrl) {
+        await copyToClipboard(shareUrl);
+        showToast('共有リンクをコピーしました');
+      } else {
+        showToast('共有リンクの取得に失敗しました');
+      }
+    } catch (e) {
+      console.error('Share register error', e);
+      showToast('共有に失敗しました');
+    } finally {
+      shareMode = false;
+      shareStartIndex = null;
+      shareEndIndex = null;
+      document.body.classList.remove('ytm-share-select-mode');
+      if (ui.shareBtn) ui.shareBtn.classList.remove('share-active');
+      updateShareSelectionHighlight();
+    }
+  }
+
   const tick = async () => {
     if (!document.getElementById('my-mode-toggle')) {
       const rc = document.querySelector('.right-controls-buttons');
@@ -1345,8 +1572,7 @@
           s.style.paddingLeft = '20px';
           s.style.paddingRight = '20px';
           s.style.minWidth = '0';
-        } catch (e) {
-        }
+        } catch (e) { }
       });
     })();
 
@@ -1360,6 +1586,11 @@
       dynamicLines = null;
       lyricsCandidates = null;
       selectedCandidateId = null;
+      shareMode = false;
+      shareStartIndex = null;
+      shareEndIndex = null;
+      document.body.classList.remove('ytm-share-select-mode');
+      if (ui.shareBtn) ui.shareBtn.classList.remove('share-active');
       updateMetaUI(meta);
       refreshCandidateMenu();
       if (ui.lyrics) ui.lyrics.scrollTop = 0;
