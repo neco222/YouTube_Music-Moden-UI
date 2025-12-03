@@ -124,9 +124,10 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     return `${mm}:${ss}.${cc}`;
   };
 
+  // ★ ここで config / requests も拾う
   const fetchCandidatesFromUrl = (url) => {
     if (!url) {
-      return Promise.resolve({ candidates: [], hasSelectCandidates: false });
+      return Promise.resolve({ candidates: [], hasSelectCandidates: false, config: null, requests: [] });
     }
 
     try {
@@ -149,14 +150,18 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
         const res = json.response || json;
         const list = Array.isArray(res.candidates) ? res.candidates : [];
         console.log('[BG] candidates count:', list.length);
+        const config = res.config || null;
+        const requests = Array.isArray(res.requests) ? res.requests : [];
         return {
           candidates: list,
-          hasSelectCandidates: list.length > 1
+          hasSelectCandidates: list.length > 1,
+          config,
+          requests
         };
       })
       .catch(err => {
         console.error('[BG] candidates error:', err);
-        return { candidates: [], hasSelectCandidates: false };
+        return { candidates: [], hasSelectCandidates: false, config: null, requests: [] };
       });
   };
 
@@ -197,6 +202,8 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
         let dynamicLines = null;
         let hasSelectCandidates = false;
         let candidates = [];
+        let config = null;
+        let requests = [];
 
         try {
           const json = JSON.parse(text);
@@ -204,6 +211,8 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
           const res = json.response || json;
 
           hasSelectCandidates = !!res.has_select_candidates;
+          config = res.config || null;
+          requests = Array.isArray(res.requests) ? res.requests : [];
 
           if (
             res.dynamic_lyrics &&
@@ -258,7 +267,9 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
               return fetchCandidatesFromUrl(url).then(cRes => {
                 candidates = cRes.candidates;
                 hasSelectCandidates = cRes.hasSelectCandidates;
-                return { lyrics, dynamicLines, hasSelectCandidates, candidates };
+                if (cRes.config) config = cRes.config;
+                if (Array.isArray(cRes.requests)) requests = cRes.requests;
+                return { lyrics, dynamicLines, hasSelectCandidates, candidates, config, requests };
               });
             }
           }
@@ -266,7 +277,7 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
           console.warn('[BG] Lyrics API response parse failed', e);
         }
 
-        return { lyrics, dynamicLines, hasSelectCandidates, candidates };
+        return { lyrics, dynamicLines, hasSelectCandidates, candidates, config, requests };
       });
   };
 
@@ -342,6 +353,8 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
             dynamicLines: lrchubRes.dynamicLines || null,
             hasSelectCandidates: lrchubRes.hasSelectCandidates || false,
             candidates: lrchubRes.candidates || [],
+            config: lrchubRes.config || null,
+            requests: lrchubRes.requests || [],
             githubFallback: false
           });
           return;
@@ -366,6 +379,8 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
             dynamicLines: null,
             hasSelectCandidates: false,
             candidates: [],
+            config: null,
+            requests: [],
             githubFallback: false
           });
           return;
@@ -386,6 +401,8 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
             dynamicLines: null,
             hasSelectCandidates: false,
             candidates: [],
+            config: null,
+            requests: [],
             githubFallback
           });
           return;
@@ -398,6 +415,8 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
           dynamicLines: null,
           hasSelectCandidates: false,
           candidates: [],
+          config: null,
+          requests: [],
           githubFallback: false
         });
       } catch (err) {
@@ -410,19 +429,31 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   }
 
   if (req.type === 'SELECT_LYRICS_CANDIDATE') {
-    const { youtube_url, video_id, candidate_id } = req.payload || {};
+    const {
+      youtube_url,
+      video_id,
+      candidate_id,
+      request,
+      action,
+      lock
+    } = req.payload || {};
 
     const body = {};
     if (youtube_url) body.youtube_url = youtube_url;
     else if (video_id) body.video_id = video_id;
     if (candidate_id) body.candidate_id = candidate_id;
+    const reqKey = request || action;
+    if (reqKey) body.request = reqKey;
+    if (typeof lock !== 'undefined') {
+      body.lock = String(lock);
+    }
 
     if (!body.youtube_url && !body.video_id) {
       sendResponse({ success: false, error: 'missing video_id or youtube_url' });
       return;
     }
-    if (!body.candidate_id) {
-      sendResponse({ success: false, error: 'missing candidate_id' });
+    if (!body.candidate_id && !body.request) {
+      sendResponse({ success: false, error: 'missing candidate_id or request' });
       return;
     }
 
