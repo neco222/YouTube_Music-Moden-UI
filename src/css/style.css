@@ -841,6 +841,15 @@ body:not(.ytm-custom-layout) ytmusic-player-bar .right-controls .toggle-player-p
   font-size: 12px;
 }
 
+/* ★ 追加: アーティスト切り替えメニュー内のリスト */
+.ytm-switch-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
 /* 歌詞削除ダイアログ */
 .ytm-confirm-dialog {
   position: absolute;
@@ -1004,7 +1013,7 @@ body:not(.ytm-custom-layout) ytmusic-player-bar .right-controls .toggle-player-p
     bottom: auto;
     right: 56px;
     transform-origin: top right;
-}
+  }
 }
 
 /* フォールバック通知トースト */
@@ -1032,6 +1041,7 @@ body:not(.ytm-custom-layout) ytmusic-player-bar .right-controls .toggle-player-p
   opacity: 1;
   transform: translateY(0);
 }
+
 .ytm-upload-menu-item.ytm-upload-menu-item-disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -1041,4 +1051,3 @@ body:not(.ytm-custom-layout) ytmusic-player-bar .right-controls .toggle-player-p
 .ytm-upload-menu-item.ytm-upload-menu-item-disabled:hover {
   background: transparent;
 }
-
