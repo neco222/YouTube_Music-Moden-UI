@@ -1,0 +1,60 @@
+  const TEXTS = {
+    ja: {
+      unit_hour: "時間",
+      unit_minute: "分",
+      unit_second: "秒",
+      replay_playTime: "総再生時間",
+      replay_plays: "回再生",
+      replay_topSong: "トップソング",
+      replay_topArtist: "トップアーティスト",
+      replay_obsession: "ヘビロテ中",
+      replay_ranking: "再生数ランキング",
+      replay_today: "今日",
+      replay_week: "今週",
+      replay_all: "全期間",
+      replay_empty: "まだ再生データがありません...",
+      replay_no_data_sub: "曲を聴くとここに表示されます",
+      replay_reset_confirm: "本当に再生履歴を全て削除しますか？\nこの操作は取り消せません。",
+      
+      replay_vibe: "あなたの雰囲気",
+      replay_lyrics_heard: "累計行数",
+      
+      settings_title: "設定",
+      settings_ui_lang: "UI言語 / Language",
+      settings_trans: "歌詞翻訳機能を使う",
+      settings_main_lang: "メイン言語 (大きく表示)",
+      settings_sub_lang: "サブ言語 (小さく表示)",
+      settings_save: "保存",
+      settings_reset: "リセット",
+      settings_saved: "設定を保存しました"
+    },
+    en: {
+      unit_hour: "h",
+      unit_minute: "m",
+      unit_second: "s",
+      replay_playTime: "Play Time",
+      replay_plays: "plays",
+      replay_topSong: "Top Song",
+      replay_topArtist: "Top Artist",
+      replay_obsession: "Most obsession",
+      replay_ranking: "Top Songs",
+      replay_today: "Today",
+      replay_week: "This Week",
+      replay_all: "All Time",
+      replay_empty: "No music played yet...",
+      replay_no_data_sub: "Play some music to see stats",
+      replay_reset_confirm: "Are you sure you want to clear all history?\nThis cannot be undone.",
+
+      replay_vibe: "Your Vibe",
+      replay_lyrics_heard: "Lyrics Heard",
+      
+      settings_title: "Settings",
+      settings_ui_lang: "UI Language",
+      settings_trans: "Use Translation",
+      settings_main_lang: "Main language",
+      settings_sub_lang: "Sub language",
+      settings_save: "Save",
+      settings_reset: "Reset",
+      settings_saved: "Saved"
+    }
+  };
