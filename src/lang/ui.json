@@ -79,5 +79,32 @@
     "settings_save": "保存",
     "settings_reset": "重置",
     "settings_saved": "已保存"
+  },
+  "ko": {
+  "unit_hour": "시간",
+  "unit_minute": "분",
+  "unit_second": "초",
+  "replay_playTime": "총 재생 시간",
+  "replay_plays": "회 재생",
+  "replay_topSong": "최다 재생 곡",
+  "replay_topArtist": "최다 재생 아티스트",
+  "replay_obsession": "최근 최애",
+  "replay_ranking": "재생 순위",
+  "replay_today": "오늘",
+  "replay_week": "이번 주",
+  "replay_all": "전체 기간",
+  "replay_empty": "아직 재생된 음악이 없어요...",
+  "replay_no_data_sub": "노래를 재생하면 통계가 표시됩니다",
+  "replay_reset_confirm": "정말로 모든 재생 기록을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.",
+  "replay_vibe": "당신의 분위기",
+  "replay_lyrics_heard": "누적 줄 수",
+  "settings_title": "설정",
+  "settings_ui_lang": "UI 언어",
+  "settings_trans": "가사 번역 기능 사용",
+  "settings_main_lang": "주 언어 (크게 표시)",
+  "settings_sub_lang": "보조 언어 (작게 표시)",
+  "settings_save": "저장",
+  "settings_reset": "초기화",
+  "settings_saved": "설정이 저장되었습니다"
   }
 }
