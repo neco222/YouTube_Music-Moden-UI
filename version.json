@@ -1,4 +1,16 @@
-{
+[
+  {
+  "version": "0.3.1",
+  "title": "Sample",
+  "date": "2025-12-11",
+  "notes": [
+    "・歌詞表示の安定化",
+    "・CloudSync の改善",
+    "・UI 言語追加"
+  ],
+  "url": "https://github.com/naikaku1/YTM-Modern-UI"
+  }
+  {
   "version": "0.3.0",
   "title": "Sample",
   "date": "2025-12-11",
@@ -9,3 +21,4 @@
   ],
   "url": "https://github.com/naikaku1/YTM-Modern-UI"
 }
+]
